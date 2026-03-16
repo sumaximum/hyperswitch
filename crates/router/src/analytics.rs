@@ -1907,9 +1907,8 @@ pub mod routes {
                             .ok_or(AnalyticsError::MissingEmail)?;
 
                         if let Some(ref url) = payload.return_url {
-                            url
-                            .validate_return_url()
-                            .map_err(AnalyticsError::InvalidReturnUrl)?;
+                            url.validate_return_url()
+                                .map_err(AnalyticsError::InvalidReturnUrl)?;
                         }
 
                         (primary_email, Some(other_emails))
@@ -2006,9 +2005,8 @@ pub mod routes {
                             .ok_or(AnalyticsError::MissingEmail)?;
 
                         if let Some(ref url) = payload.return_url {
-                            url
-                            .validate_return_url()
-                            .map_err(AnalyticsError::InvalidReturnUrl)?;
+                            url.validate_return_url()
+                                .map_err(AnalyticsError::InvalidReturnUrl)?;
                         }
 
                         (primary_email, Some(other_emails))
@@ -2103,9 +2101,8 @@ pub mod routes {
                             .ok_or(AnalyticsError::MissingEmail)?;
 
                         if let Some(ref url) = payload.return_url {
-                            url
-                            .validate_return_url()
-                            .map_err(AnalyticsError::InvalidReturnUrl)?;
+                            url.validate_return_url()
+                                .map_err(AnalyticsError::InvalidReturnUrl)?;
                         }
 
                         (primary_email, Some(other_emails))
@@ -2208,9 +2205,8 @@ pub mod routes {
                             .ok_or(AnalyticsError::MissingEmail)?;
 
                         if let Some(ref url) = payload.return_url {
-                            url
-                            .validate_return_url()
-                            .map_err(AnalyticsError::InvalidReturnUrl)?;
+                            url.validate_return_url()
+                                .map_err(AnalyticsError::InvalidReturnUrl)?;
                         }
 
                         (primary_email, Some(other_emails))
@@ -2306,9 +2302,8 @@ pub mod routes {
                             .ok_or(AnalyticsError::MissingEmail)?;
 
                         if let Some(ref url) = payload.return_url {
-                            url
-                            .validate_return_url()
-                            .map_err(AnalyticsError::InvalidReturnUrl)?;
+                            url.validate_return_url()
+                                .map_err(AnalyticsError::InvalidReturnUrl)?;
                         }
 
                         (primary_email, Some(other_emails))
@@ -2403,9 +2398,8 @@ pub mod routes {
                             .ok_or(AnalyticsError::MissingEmail)?;
 
                         if let Some(ref url) = payload.return_url {
-                            url
-                            .validate_return_url()
-                            .map_err(AnalyticsError::InvalidReturnUrl)?;
+                            url.validate_return_url()
+                                .map_err(AnalyticsError::InvalidReturnUrl)?;
                         }
 
                         (primary_email, Some(other_emails))
@@ -2509,9 +2503,8 @@ pub mod routes {
                             .ok_or(AnalyticsError::MissingEmail)?;
 
                         if let Some(ref url) = payload.return_url {
-                            url
-                            .validate_return_url()
-                            .map_err(AnalyticsError::InvalidReturnUrl)?;
+                            url.validate_return_url()
+                                .map_err(AnalyticsError::InvalidReturnUrl)?;
                         }
 
                         (primary_email, Some(other_emails))
@@ -2608,9 +2601,8 @@ pub mod routes {
                             .ok_or(AnalyticsError::MissingEmail)?;
 
                         if let Some(ref url) = payload.return_url {
-                            url
-                            .validate_return_url()
-                            .map_err(AnalyticsError::InvalidReturnUrl)?;
+                            url.validate_return_url()
+                                .map_err(AnalyticsError::InvalidReturnUrl)?;
                         }
 
                         (primary_email, Some(other_emails))
@@ -2705,9 +2697,8 @@ pub mod routes {
                             .ok_or(AnalyticsError::MissingEmail)?;
 
                         if let Some(ref url) = payload.return_url {
-                            url
-                            .validate_return_url()
-                            .map_err(AnalyticsError::InvalidReturnUrl)?;
+                            url.validate_return_url()
+                                .map_err(AnalyticsError::InvalidReturnUrl)?;
                         }
 
                         (primary_email, Some(other_emails))
@@ -2809,9 +2800,8 @@ pub mod routes {
                             .ok_or(AnalyticsError::MissingEmail)?;
 
                         if let Some(ref url) = payload.return_url {
-                            url
-                            .validate_return_url()
-                            .map_err(AnalyticsError::InvalidReturnUrl)?;
+                            url.validate_return_url()
+                                .map_err(AnalyticsError::InvalidReturnUrl)?;
                         }
 
                         (primary_email, Some(other_emails))
@@ -2907,9 +2897,8 @@ pub mod routes {
                             .ok_or(AnalyticsError::MissingEmail)?;
 
                         if let Some(ref url) = payload.return_url {
-                            url
-                            .validate_return_url()
-                            .map_err(AnalyticsError::InvalidReturnUrl)?;
+                            url.validate_return_url()
+                                .map_err(AnalyticsError::InvalidReturnUrl)?;
                         }
 
                         (primary_email, Some(other_emails))
@@ -3003,9 +2992,8 @@ pub mod routes {
                             .ok_or(AnalyticsError::MissingEmail)?;
 
                         if let Some(ref url) = payload.return_url {
-                            url
-                            .validate_return_url()
-                            .map_err(AnalyticsError::InvalidReturnUrl)?;
+                            url.validate_return_url()
+                                .map_err(AnalyticsError::InvalidReturnUrl)?;
                         }
 
                         (primary_email, Some(other_emails))
@@ -3116,9 +3104,8 @@ pub mod routes {
                             .ok_or(AnalyticsError::MissingEmail)?;
 
                         if let Some(ref url) = payload.return_url {
-                            url
-                            .validate_return_url()
-                            .map_err(AnalyticsError::InvalidReturnUrl)?;
+                            url.validate_return_url()
+                                .map_err(AnalyticsError::InvalidReturnUrl)?;
                         }
 
                         (primary_email, Some(other_emails))
@@ -3215,9 +3202,8 @@ pub mod routes {
                             .ok_or(AnalyticsError::MissingEmail)?;
 
                         if let Some(ref url) = payload.return_url {
-                            url
-                            .validate_return_url()
-                            .map_err(AnalyticsError::InvalidReturnUrl)?;
+                            url.validate_return_url()
+                                .map_err(AnalyticsError::InvalidReturnUrl)?;
                         }
 
                         (primary_email, Some(other_emails))
@@ -3312,9 +3298,8 @@ pub mod routes {
                             .ok_or(AnalyticsError::MissingEmail)?;
 
                         if let Some(ref url) = payload.return_url {
-                            url
-                            .validate_return_url()
-                            .map_err(AnalyticsError::InvalidReturnUrl)?;
+                            url.validate_return_url()
+                                .map_err(AnalyticsError::InvalidReturnUrl)?;
                         }
 
                         (primary_email, Some(other_emails))

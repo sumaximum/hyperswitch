@@ -747,8 +747,7 @@ impl Url {
     /// It saves compute costs and gives the merchant immediate feedback.
     pub fn validate_return_url(&self) -> Result<(), String> {
         let url_str = self.get_string_repr();
-        let parsed = url::Url::parse(url_str)
-            .map_err(|_| "Failed to parse URL".to_string())?;
+        let parsed = url::Url::parse(url_str).map_err(|_| "Failed to parse URL".to_string())?;
 
         // Validate scheme - only HTTPS allowed
         if parsed.scheme() != "https" {
@@ -756,7 +755,8 @@ impl Url {
         }
 
         // Get host
-        let host = parsed.host_str()
+        let host = parsed
+            .host_str()
             .ok_or_else(|| "URL must have a host.".to_string())?;
 
         // Block localhost and common internal hostnames
@@ -769,7 +769,8 @@ impl Url {
         // DNS resolution and IP validation
         let host_with_port = format!("{}:443", host);
         // Resolve the host to its actual IP addresses
-        let socket_addrs = host_with_port.to_socket_addrs()
+        let socket_addrs = host_with_port
+            .to_socket_addrs()
             .map_err(|_| "Failed to resolve hostname".to_string())?;
 
         // A domain name can resolve to multiple IPs. We must check all of them
