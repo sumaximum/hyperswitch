@@ -48,5 +48,5 @@ option_map_unit_fn = "allow"
 
 [profile.release]
 strip = true
-lto = "thin"
-codegen-units = 4
+lto = false
+codegen-units = 16
