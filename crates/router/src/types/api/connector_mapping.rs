@@ -137,6 +137,9 @@ impl ConnectorData {
                 enums::Connector::Bankofamerica => Ok(ConnectorEnum::Old(Box::new(
                     connector::Bankofamerica::new(),
                 ))),
+                enums::Connector::Atbbank => Ok(ConnectorEnum::Old(Box::new(
+                    connector::Atbbank::new(),
+                ))),
                 enums::Connector::Barclaycard => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Barclaycard::new())))
                 }
