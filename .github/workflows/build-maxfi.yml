@@ -28,14 +28,6 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Cache Docker layers
-        uses: actions/cache@v4
-        with:
-          path: /tmp/.buildx-cache
-          key: ${{ runner.os }}-buildx-hs-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-buildx-hs-
-
       - name: Extract version
         id: version
         run: |
@@ -44,7 +36,7 @@ jobs:
           echo "tag=${BRANCH}-${SHORT_SHA}" >> $GITHUB_OUTPUT
           echo "latest_tag=${BRANCH}-latest" >> $GITHUB_OUTPUT
 
-      # Router builds from scratch and caches the builder stage
+      # Router: full build, caches planner+builder stages via GHA cache
       - name: Build and push Router image
         uses: docker/build-push-action@v5
         with:
@@ -54,13 +46,13 @@ jobs:
           tags: |
             ${{ env.REGISTRY }}/hyperswitch-router:${{ steps.version.outputs.tag }}
             ${{ env.REGISTRY }}/hyperswitch-router:${{ steps.version.outputs.latest_tag }}
-          cache-from: type=local,src=/tmp/.buildx-cache
-          cache-to: type=local,dest=/tmp/.buildx-cache-new,mode=max
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
           build-args: |
             BINARY=router
             EXTRA_FEATURES=
 
-      # Consumer/Producer/Drainer reuse cached builder stage — only final stage differs
+      # Consumer: reuses cached builder stage (only final COPY differs)
       - name: Build and push Consumer image
         uses: docker/build-push-action@v5
         with:
@@ -70,7 +62,7 @@ jobs:
           tags: |
             ${{ env.REGISTRY }}/hyperswitch-consumer:${{ steps.version.outputs.tag }}
             ${{ env.REGISTRY }}/hyperswitch-consumer:${{ steps.version.outputs.latest_tag }}
-          cache-from: type=local,src=/tmp/.buildx-cache-new
+          cache-from: type=gha
           build-args: |
             BINARY=scheduler
             SCHEDULER_FLOW=consumer
@@ -85,7 +77,7 @@ jobs:
           tags: |
             ${{ env.REGISTRY }}/hyperswitch-producer:${{ steps.version.outputs.tag }}
             ${{ env.REGISTRY }}/hyperswitch-producer:${{ steps.version.outputs.latest_tag }}
-          cache-from: type=local,src=/tmp/.buildx-cache-new
+          cache-from: type=gha
           build-args: |
             BINARY=scheduler
             SCHEDULER_FLOW=producer
@@ -100,12 +92,7 @@ jobs:
           tags: |
             ${{ env.REGISTRY }}/hyperswitch-drainer:${{ steps.version.outputs.tag }}
             ${{ env.REGISTRY }}/hyperswitch-drainer:${{ steps.version.outputs.latest_tag }}
-          cache-from: type=local,src=/tmp/.buildx-cache-new
+          cache-from: type=gha
           build-args: |
             BINARY=drainer
             EXTRA_FEATURES=
-
-      - name: Move cache
-        run: |
-          rm -rf /tmp/.buildx-cache
-          mv /tmp/.buildx-cache-new /tmp/.buildx-cache
