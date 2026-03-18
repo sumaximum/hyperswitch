@@ -23,7 +23,7 @@ jobs:
           token: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
 
       - name: Login to DO Container Registry
-        run: doctl registry login --expiry-seconds 1800
+        run: doctl registry login --expiry-seconds 3600
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -44,21 +44,7 @@ jobs:
           echo "tag=${BRANCH}-${SHORT_SHA}" >> $GITHUB_OUTPUT
           echo "latest_tag=${BRANCH}-latest" >> $GITHUB_OUTPUT
 
-      # Single Rust compilation, then extract all binaries
-      - name: Build all binaries (single Rust compilation)
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          file: ./Dockerfile
-          push: false
-          load: true
-          tags: hs-builder:local
-          target: builder
-          cache-from: type=local,src=/tmp/.buildx-cache
-          cache-to: type=local,dest=/tmp/.buildx-cache-new,mode=max
-          build-args: |
-            EXTRA_FEATURES=
-
+      # Router builds from scratch and caches the builder stage
       - name: Build and push Router image
         uses: docker/build-push-action@v5
         with:
@@ -68,11 +54,13 @@ jobs:
           tags: |
             ${{ env.REGISTRY }}/hyperswitch-router:${{ steps.version.outputs.tag }}
             ${{ env.REGISTRY }}/hyperswitch-router:${{ steps.version.outputs.latest_tag }}
-          cache-from: type=local,src=/tmp/.buildx-cache-new
+          cache-from: type=local,src=/tmp/.buildx-cache
+          cache-to: type=local,dest=/tmp/.buildx-cache-new,mode=max
           build-args: |
             BINARY=router
             EXTRA_FEATURES=
 
+      # Consumer/Producer/Drainer reuse cached builder stage — only final stage differs
       - name: Build and push Consumer image
         uses: docker/build-push-action@v5
         with:
