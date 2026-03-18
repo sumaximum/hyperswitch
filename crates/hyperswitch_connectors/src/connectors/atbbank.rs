@@ -80,7 +80,7 @@ impl api::Refund for Atbbank {}
 impl api::RefundExecute for Atbbank {}
 impl api::RefundSync for Atbbank {}
 impl api::PaymentToken for Atbbank {}
-impl api::CompleteAuthorize for Atbbank {}
+impl api::PaymentsCompleteAuthorize for Atbbank {}
 
 impl ConnectorIntegration<PaymentMethodToken, PaymentMethodTokenizationData, PaymentsResponseData>
     for Atbbank

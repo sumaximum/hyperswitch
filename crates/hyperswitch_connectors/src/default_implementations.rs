@@ -1473,7 +1473,6 @@ default_imp_for_complete_authorize!(
     connectors::Adyenplatform,
     connectors::Amazonpay,
     connectors::Archipel,
-    connectors::Atbbank,
     connectors::Authipay,
     connectors::Bamboraapac,
     connectors::Bankofamerica,
