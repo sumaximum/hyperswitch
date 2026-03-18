@@ -933,6 +933,8 @@ static ATBBANK_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
 
 static ATBBANK_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 0] = [];
 
+impl api::ConnectorAccessTokenSuffix for Atbbank {}
+
 impl ConnectorSpecifications for Atbbank {
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
         Some(&ATBBANK_CONNECTOR_INFO)
