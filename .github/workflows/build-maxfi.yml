@@ -1,0 +1,113 @@
+name: Build MAXFI Custom Hyperswitch
+
+on:
+  push:
+    branches:
+      - 'maxfi/**'
+  workflow_dispatch:
+
+env:
+  REGISTRY: registry.digitalocean.com/maxfiregistry
+  IMAGE_NAME: hyperswitch-router
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install doctl
+        uses: digitalocean/action-doctl@v2
+        with:
+          token: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
+
+      - name: Login to DO Container Registry
+        run: doctl registry login --expiry-seconds 600
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Cache Docker layers
+        uses: actions/cache@v4
+        with:
+          path: /tmp/.buildx-cache
+          key: ${{ runner.os }}-buildx-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-buildx-
+
+      - name: Extract version
+        id: version
+        run: |
+          SHORT_SHA=$(echo ${{ github.sha }} | cut -c1-7)
+          BRANCH=$(echo ${{ github.ref_name }} | sed 's/\//-/g')
+          echo "tag=${BRANCH}-${SHORT_SHA}" >> $GITHUB_OUTPUT
+          echo "latest_tag=${BRANCH}-latest" >> $GITHUB_OUTPUT
+
+      - name: Build and push Router image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.version.outputs.tag }}
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.version.outputs.latest_tag }}
+          cache-from: type=local,src=/tmp/.buildx-cache
+          cache-to: type=local,dest=/tmp/.buildx-cache-new,mode=max
+          build-args: |
+            BINARY=router
+            EXTRA_FEATURES=
+
+      - name: Build and push Consumer image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/hyperswitch-consumer:${{ steps.version.outputs.tag }}
+            ${{ env.REGISTRY }}/hyperswitch-consumer:${{ steps.version.outputs.latest_tag }}
+          cache-from: type=local,src=/tmp/.buildx-cache
+          cache-to: type=local,dest=/tmp/.buildx-cache-new,mode=max
+          build-args: |
+            BINARY=scheduler
+            SCHEDULER_FLOW=consumer
+            EXTRA_FEATURES=
+
+      - name: Build and push Producer image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/hyperswitch-producer:${{ steps.version.outputs.tag }}
+            ${{ env.REGISTRY }}/hyperswitch-producer:${{ steps.version.outputs.latest_tag }}
+          cache-from: type=local,src=/tmp/.buildx-cache
+          cache-to: type=local,dest=/tmp/.buildx-cache-new,mode=max
+          build-args: |
+            BINARY=scheduler
+            SCHEDULER_FLOW=producer
+            EXTRA_FEATURES=
+
+      - name: Build and push Drainer image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/hyperswitch-drainer:${{ steps.version.outputs.tag }}
+            ${{ env.REGISTRY }}/hyperswitch-drainer:${{ steps.version.outputs.latest_tag }}
+          cache-from: type=local,src=/tmp/.buildx-cache
+          cache-to: type=local,dest=/tmp/.buildx-cache-new,mode=max
+          build-args: |
+            BINARY=drainer
+            EXTRA_FEATURES=
+
+      - name: Move cache
+        run: |
+          rm -rf /tmp/.buildx-cache
+          mv /tmp/.buildx-cache-new /tmp/.buildx-cache
