@@ -16,9 +16,9 @@ FROM rust:bookworm AS builder
 ARG EXTRA_FEATURES=""
 ARG VERSION_FEATURE_SET="v1"
 
-# Install system deps + mold linker (3-8x faster linking)
+# Install system deps
 RUN apt-get update \
-    && apt-get install -y libpq-dev libssl-dev pkg-config protobuf-compiler mold clang
+    && apt-get install -y libpq-dev libssl-dev pkg-config protobuf-compiler
 
 RUN cargo install cargo-chef --locked
 WORKDIR /router
@@ -28,9 +28,8 @@ ENV CARGO_INCREMENTAL=0
 ENV CARGO_NET_RETRY=10
 ENV RUSTUP_MAX_RETRIES=10
 ENV RUST_BACKTRACE="short"
-
-# Use mold linker for faster linking (set AFTER cargo-chef install)
-ENV RUSTFLAGS="-C linker=clang -C link-arg=-fuse-ld=mold"
+# Limit parallel codegen to save RAM on 2-CPU / 15GB runner
+ENV CARGO_BUILD_JOBS=2
 
 # Step 1: Cook dependencies (CACHED if Cargo.lock unchanged)
 COPY --from=planner /router/recipe.json recipe.json
