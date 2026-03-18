@@ -512,6 +512,7 @@ impl ConnectorConfig {
             Connector::Airwallex => Ok(connector_data.airwallex),
             Connector::Amazonpay => Ok(connector_data.amazonpay),
             Connector::Archipel => Ok(connector_data.archipel),
+            Connector::Atbbank => Ok(connector_data.atbbank),
             Connector::Authorizedotnet => Ok(connector_data.authorizedotnet),
             Connector::Bamboraapac => Ok(connector_data.bamboraapac),
             Connector::Bankofamerica => Ok(connector_data.bankofamerica),

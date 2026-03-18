@@ -145,13 +145,18 @@ impl ConnectorCommon for Atbbank {
         event_builder.map(|i| i.set_error_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
+        let error_message = response
+            .error_message
+            .unwrap_or_else(|| "Unknown error".to_string());
+        let error_code = response
+            .error_code
+            .unwrap_or_else(|| "UNKNOWN".to_string());
+
         Ok(ErrorResponse {
             status_code: res.status_code,
-            code: response.error_code.unwrap_or_else(|| "UNKNOWN".to_string()),
-            message: response
-                .error_message
-                .unwrap_or_else(|| "Unknown error".to_string()),
-            reason: response.error_message.clone(),
+            code: error_code,
+            message: error_message.clone(),
+            reason: Some(error_message),
             attempt_status: None,
             connector_transaction_id: None,
             connector_response_reference_id: None,
