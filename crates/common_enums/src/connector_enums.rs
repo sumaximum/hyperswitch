@@ -68,6 +68,7 @@ pub enum Connector {
     Airwallex,
     Amazonpay,
     Archipel,
+    Atbbank,
     Authorizedotnet,
     Bambora,
     Bamboraapac,
@@ -305,6 +306,7 @@ impl Connector {
             | Self::Adyenplatform
             | Self::Airwallex
             | Self::Amazonpay
+            | Self::Atbbank
             | Self::Authorizedotnet
             | Self::Bambora
             | Self::Bamboraapac

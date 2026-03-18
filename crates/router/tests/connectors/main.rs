@@ -129,6 +129,7 @@ mod trustpay;
 mod trustpayments;
 mod tsys;
 mod unified_authentication_service;
+mod atbbank;
 mod utils;
 mod vgs;
 mod volt;

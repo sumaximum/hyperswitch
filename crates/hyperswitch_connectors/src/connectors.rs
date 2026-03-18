@@ -5,6 +5,7 @@ pub mod affirm;
 pub mod airwallex;
 pub mod amazonpay;
 pub mod archipel;
+pub mod atbbank;
 pub mod authipay;
 pub mod authorizedotnet;
 pub mod bambora;
@@ -181,4 +182,5 @@ pub use self::{
     wellsfargo::Wellsfargo, wellsfargopayout::Wellsfargopayout, wise::Wise, worldline::Worldline,
     worldpay::Worldpay, worldpaymodular::Worldpaymodular, worldpayvantiv::Worldpayvantiv,
     worldpayxml::Worldpayxml, xendit::Xendit, zen::Zen, zift::Zift, zsl::Zsl,
+ atbbank::Atbbank,
 };

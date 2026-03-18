@@ -251,6 +251,7 @@ pub struct ConnectorConfig {
     pub airwallex: Option<ConnectorTomlConfig>,
     pub amazonpay: Option<ConnectorTomlConfig>,
     pub archipel: Option<ConnectorTomlConfig>,
+    pub atbbank: Option<ConnectorTomlConfig>,
     pub authorizedotnet: Option<ConnectorTomlConfig>,
     pub bamboraapac: Option<ConnectorTomlConfig>,
     pub bankofamerica: Option<ConnectorTomlConfig>,

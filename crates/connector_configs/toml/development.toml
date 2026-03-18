@@ -8292,3 +8292,7 @@ api_key = "Static Tokens"
 [trustly.connector_auth.HeaderKey]
 api_key = "API Key"
 
+
+[atbbank]
+[atbbank.connector_auth.HeaderKey]
+api_key = "API Key"
