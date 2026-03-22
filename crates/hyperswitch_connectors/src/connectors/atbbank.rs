@@ -1,5 +1,6 @@
 pub mod transformers;
 
+use std::collections::HashMap;
 use std::sync::LazyLock;
 
 use common_enums::enums;
@@ -290,11 +291,34 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
-        RouterData::try_from(ResponseRouterData {
+        let mut router_data = RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
-        })
+        })?;
+
+        // ATB H2H flow: after register.do, redirect to Hyperswitch's
+        // CompleteAuthorize endpoint instead of ATB's hosted payment page
+        // (which may not be available for this merchant).
+        // CompleteAuthorize will then call paymentorder.do with card data.
+        if let Ok(PaymentsResponseData::TransactionResponse {
+            ref mut redirection_data,
+            ..
+        }) = router_data.response
+        {
+            if let Some(ref complete_url) = data.request.complete_authorize_url {
+                if let Some(ref mut redirect) = **redirection_data {
+                    use hyperswitch_domain_models::router_response_types::RedirectForm;
+                    *redirect = RedirectForm::Form {
+                        endpoint: complete_url.clone(),
+                        method: Method::Get,
+                        form_fields: HashMap::new(),
+                    };
+                }
+            }
+        }
+
+        Ok(router_data)
     }
 
     fn get_error_response(
