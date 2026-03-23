@@ -393,6 +393,11 @@ impl<F, T>
                 let connector_metadata = Some(
                     serde_json::to_value(AtbbankMeta {
                         order_id: order_id.clone(),
+                        card_number: None,
+                        card_cvc: None,
+                        card_exp_month: None,
+                        card_exp_year: None,
+                        card_holder: None,
                     })
                     .change_context(errors::ConnectorError::ResponseHandlingFailed)?,
                 );
