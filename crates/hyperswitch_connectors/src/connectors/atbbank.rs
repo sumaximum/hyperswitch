@@ -47,7 +47,7 @@ use hyperswitch_interfaces::{
     types::{self, Response},
     webhooks::{IncomingWebhook, IncomingWebhookRequestDetails, WebhookContext},
 };
-use masking::Mask;
+use masking::{Mask, PeekInterface, Secret};
 use transformers as atbbank;
 
 use crate::{
@@ -298,14 +298,16 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         })?;
 
         // ATB H2H flow: after register.do, redirect to Hyperswitch's
-        // CompleteAuthorize endpoint instead of ATB's hosted payment page
-        // (which may not be available for this merchant).
-        // CompleteAuthorize will then call paymentorder.do with card data.
+        // CompleteAuthorize endpoint instead of ATB's hosted payment page.
+        // Also save card data in connector_metadata so CompleteAuthorize
+        // can use it (payment_method_data is not available via redirect callback).
         if let Ok(PaymentsResponseData::TransactionResponse {
             ref mut redirection_data,
+            ref mut connector_metadata,
             ..
         }) = router_data.response
         {
+            // Redirect to CompleteAuthorize URL instead of ATB hosted page
             if let Some(ref complete_url) = data.request.complete_authorize_url {
                 if let Some(ref mut redirect) = **redirection_data {
                     use hyperswitch_domain_models::router_response_types::RedirectForm;
@@ -314,6 +316,30 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
                         method: Method::Get,
                         form_fields: HashMap::new(),
                     };
+                }
+            }
+
+            // Save card data in connector_metadata for H2H CompleteAuthorize flow
+            if let Some(ref meta_value) = connector_metadata {
+                if let Ok(mut meta) =
+                    serde_json::from_value::<atbbank::AtbbankMeta>(meta_value.clone())
+                {
+                    use hyperswitch_domain_models::payment_method_data::PaymentMethodData;
+                    if let PaymentMethodData::Card(ref card) = data.request.payment_method_data {
+                        meta.card_number =
+                            Some(Secret::new(card.card_number.get_card_no()));
+                        meta.card_cvc = Some(card.card_cvc.clone());
+                        meta.card_exp_month = Some(card.card_exp_month.clone());
+                        meta.card_exp_year = Some(card.card_exp_year.clone());
+                        meta.card_holder = card
+                            .card_holder_name
+                            .as_ref()
+                            .map(|n| n.peek().to_string());
+
+                        if let Ok(updated) = serde_json::to_value(&meta) {
+                            *connector_metadata = Some(updated);
+                        }
+                    }
                 }
             }
         }

@@ -96,6 +96,18 @@ impl TryFrom<&ConnectorAuthType> for AtbbankAuthType {
 pub struct AtbbankMeta {
     /// The `orderId` returned by register.do — needed for all subsequent calls.
     pub order_id: String,
+    /// Card data saved during Authorize for H2H flow (used in CompleteAuthorize
+    /// where payment_method_data is not available via redirect callback).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub card_number: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub card_cvc: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub card_exp_month: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub card_exp_year: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub card_holder: Option<String>,
 }
 
 // ---------------------------------------------------------------------------
@@ -229,7 +241,7 @@ impl TryFrom<&PaymentsCompleteAuthorizeRouterData> for AtbbankPaymentOrderReques
     fn try_from(item: &PaymentsCompleteAuthorizeRouterData) -> Result<Self, Self::Error> {
         let auth = AtbbankAuthType::try_from(&item.connector_auth_type)?;
 
-        // Get orderId from connector metadata (saved during register.do step)
+        // Get orderId + optional card data from connector metadata (saved during register.do step)
         let meta: AtbbankMeta = item
             .request
             .connector_meta
@@ -240,17 +252,43 @@ impl TryFrom<&PaymentsCompleteAuthorizeRouterData> for AtbbankPaymentOrderReques
             .parse_value("AtbbankMeta")
             .change_context(errors::ConnectorError::RequestEncodingFailed)?;
 
-        let card = match item.request.payment_method_data.as_ref() {
-            Some(hyperswitch_domain_models::payment_method_data::PaymentMethodData::Card(c)) => {
-                Ok(c.clone())
-            }
-            _ => Err(errors::ConnectorError::MissingRequiredField {
-                field_name: "payment_method_data (Card)",
-            }),
-        }?;
-
         let language = "en".to_string();
-        Self::try_new(&auth, &meta.order_id, &card, &language)
+
+        // Try payment_method_data first (standard Hyperswitch flow),
+        // then fallback to card data saved in connector_meta (H2H redirect flow).
+        if let Some(hyperswitch_domain_models::payment_method_data::PaymentMethodData::Card(c)) =
+            item.request.payment_method_data.as_ref()
+        {
+            Self::try_new(&auth, &meta.order_id, &c, &language)
+        } else if let Some(ref pan) = meta.card_number {
+            // H2H fallback: card data was saved in connector_metadata during Authorize
+            let cvc = meta.card_cvc.ok_or(errors::ConnectorError::MissingRequiredField {
+                field_name: "card_cvc in connector_meta",
+            })?;
+            let exp_year = meta.card_exp_year.ok_or(errors::ConnectorError::MissingRequiredField {
+                field_name: "card_exp_year in connector_meta",
+            })?;
+            let exp_month = meta.card_exp_month.ok_or(errors::ConnectorError::MissingRequiredField {
+                field_name: "card_exp_month in connector_meta",
+            })?;
+
+            Ok(Self {
+                user_name: auth.user_name,
+                password: auth.password,
+                mdorder: meta.order_id,
+                pan: pan.clone(),
+                cvc,
+                expiry_year: exp_year,
+                expiry_month: exp_month,
+                text: meta.card_holder.unwrap_or_default(),
+                language,
+            })
+        } else {
+            Err(errors::ConnectorError::MissingRequiredField {
+                field_name: "payment_method_data (Card) or card data in connector_meta",
+            }
+            .into())
+        }
     }
 }
 
