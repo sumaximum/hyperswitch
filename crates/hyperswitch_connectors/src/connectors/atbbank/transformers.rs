@@ -108,6 +108,10 @@ pub struct AtbbankMeta {
     pub card_exp_year: Option<Secret<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub card_holder: Option<String>,
+    /// 3DS2 Server Transaction ID — saved after Stage 1 of paymentorder.do,
+    /// used in Stage 2 to trigger ACS challenge.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub three_ds_server_trans_id: Option<String>,
 }
 
 // ---------------------------------------------------------------------------
@@ -236,6 +240,24 @@ impl AtbbankPaymentOrderRequest {
     }
 }
 
+// ---------------------------------------------------------------------------
+// Stage 2 request — paymentorder.do with threeDSServerTransId (no card data)
+// ---------------------------------------------------------------------------
+
+/// Request body for Stage 2 of two-stage 3DS2 flow.
+/// Sends `threeDSServerTransId` from Stage 1 to trigger ACS challenge.
+#[derive(Debug, Serialize)]
+pub struct AtbbankPaymentOrderStage2Request {
+    #[serde(rename = "userName")]
+    pub user_name: Secret<String>,
+    pub password: Secret<String>,
+    #[serde(rename = "MDORDER")]
+    pub mdorder: String,
+    #[serde(rename = "threeDSServerTransId")]
+    pub three_ds_server_trans_id: String,
+    pub language: String,
+}
+
 impl TryFrom<&PaymentsCompleteAuthorizeRouterData> for AtbbankPaymentOrderRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &PaymentsCompleteAuthorizeRouterData) -> Result<Self, Self::Error> {
@@ -314,6 +336,21 @@ pub struct AtbbankPaymentOrderResponse {
     pub success: Option<bool>,
     /// Additional data blob.
     pub data: Option<serde_json::Value>,
+    // -- 3DS2 two-stage fields (Stage 1 response) --
+    /// Order status code from Stage 1 (6 = pending 3DS, 2 = deposited).
+    pub order_status_code: Option<i32>,
+    /// Whether 3DS2 is required (true = two-stage flow).
+    #[serde(rename = "is3DSVer2")]
+    pub is_3ds_ver2: Option<bool>,
+    /// 3DS Server Transaction ID — returned in Stage 1, sent back in Stage 2.
+    #[serde(rename = "threeDSServerTransId")]
+    pub three_ds_server_trans_id: Option<String>,
+    /// Packed CReq — encoded challenge request payload (Stage 2 alternative to cReq).
+    #[serde(rename = "packedCReq")]
+    pub packed_creq: Option<String>,
+    /// 3DS Method URL server (optional, for 3DS method invocation).
+    #[serde(rename = "threeDSMethodURLServer")]
+    pub three_ds_method_url_server: Option<String>,
 }
 
 // ---------------------------------------------------------------------------
@@ -398,6 +435,7 @@ impl<F, T>
                         card_exp_month: None,
                         card_exp_year: None,
                         card_holder: None,
+                        three_ds_server_trans_id: None,
                     })
                     .change_context(errors::ConnectorError::ResponseHandlingFailed)?,
                 );
@@ -421,8 +459,42 @@ impl<F, T>
             AtbbankPaymentsResponse::PaymentOrder(ref po) => {
                 let error_code = po.error_code.unwrap_or(0);
 
-                // Check for 3DS challenge
-                if let (Some(ref acs_url), Some(ref creq)) = (&po.acs_url, &po.creq) {
+                // ── Stage 1: 3DS2 two-stage flow ──
+                // ATB returns is3DSVer2=true + threeDSServerTransId but NO acsUrl yet.
+                // We save threeDSServerTransId in metadata and signal that a second
+                // CompleteAuthorize call is needed (handle_response in atbbank.rs
+                // will set the redirect to complete_authorize_url).
+                if po.is_3ds_ver2 == Some(true) {
+                    if let Some(ref ts_id) = po.three_ds_server_trans_id {
+                        if po.acs_url.is_none() || po.acs_url.as_deref() == Some("") {
+                            // Stage 1 response — save threeDSServerTransId for Stage 2
+                            // Preserve existing meta (order_id, card data) and add ts_id
+                            let stage1_meta = serde_json::json!({
+                                "three_ds_server_trans_id": ts_id,
+                            });
+                            return Ok(Self {
+                                status: enums::AttemptStatus::AuthenticationPending,
+                                response: Ok(PaymentsResponseData::TransactionResponse {
+                                    resource_id: ResponseId::NoResponseId,
+                                    redirection_data: Box::new(None),
+                                    mandate_reference: Box::new(None),
+                                    connector_metadata: Some(stage1_meta),
+                                    network_txn_id: None,
+                                    connector_response_reference_id: None,
+                                    incremental_authorization_allowed: None,
+                                    authentication_data: None,
+                                    charges: None,
+                                }),
+                                ..item.data
+                            });
+                        }
+                    }
+                }
+
+                // ── Stage 2: ACS redirect ──
+                // ATB returns acsUrl + (packedCReq or cReq) — redirect to ACS.
+                let creq_value = po.packed_creq.as_ref().or(po.creq.as_ref());
+                if let (Some(ref acs_url), Some(creq)) = (&po.acs_url, creq_value) {
                     if !acs_url.is_empty() && !creq.is_empty() {
                         let mut form_fields = HashMap::new();
                         form_fields.insert("creq".to_string(), creq.clone());

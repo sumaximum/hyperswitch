@@ -389,9 +389,31 @@ impl ConnectorIntegration<CompleteAuthorize, CompleteAuthorizeData, PaymentsResp
         req: &PaymentsCompleteAuthorizeRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_req =
-            atbbank::AtbbankCompleteAuthorizeRequest::try_from(req)?;
-        Ok(RequestContent::FormUrlEncoded(Box::new(connector_req)))
+        // Check if this is Stage 2 of two-stage 3DS2 flow
+        // (threeDSServerTransId present in connector_meta from Stage 1)
+        let meta: Option<atbbank::AtbbankMeta> = req
+            .request
+            .connector_meta
+            .as_ref()
+            .and_then(|m| serde_json::from_value(m.clone()).ok());
+
+        if let Some(ref ts_id) = meta.as_ref().and_then(|m| m.three_ds_server_trans_id.clone()) {
+            // Stage 2: send threeDSServerTransId (no card data)
+            let auth = atbbank::AtbbankAuthType::try_from(&req.connector_auth_type)?;
+            let order_id = meta.as_ref().map(|m| m.order_id.clone()).unwrap_or_default();
+            let stage2_req = atbbank::AtbbankPaymentOrderStage2Request {
+                user_name: auth.user_name,
+                password: auth.password,
+                mdorder: order_id,
+                three_ds_server_trans_id: ts_id.clone(),
+                language: "en".to_string(),
+            };
+            Ok(RequestContent::FormUrlEncoded(Box::new(stage2_req)))
+        } else {
+            // Stage 1: send card data (existing flow)
+            let connector_req = atbbank::AtbbankCompleteAuthorizeRequest::try_from(req)?;
+            Ok(RequestContent::FormUrlEncoded(Box::new(connector_req)))
+        }
     }
 
     fn build_request(
@@ -430,11 +452,72 @@ impl ConnectorIntegration<CompleteAuthorize, CompleteAuthorizeData, PaymentsResp
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
-        RouterData::try_from(ResponseRouterData {
+        let mut router_data = RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
-        })
+        })?;
+
+        // ── Stage 1 of two-stage 3DS2: redirect back to CompleteAuthorize ──
+        // After TryFrom, if response was Stage 1 (threeDSServerTransId in new metadata,
+        // no redirect set), we need to:
+        // 1. Merge threeDSServerTransId into the existing connector_metadata (preserve order_id)
+        // 2. Set redirect to complete_authorize_url to trigger Stage 2
+        if let Ok(PaymentsResponseData::TransactionResponse {
+            ref mut redirection_data,
+            ref mut connector_metadata,
+            ..
+        }) = router_data.response
+        {
+            // Check if this is Stage 1 response (has threeDSServerTransId in new metadata, no redirect)
+            let is_stage1 = redirection_data.is_none()
+                && connector_metadata
+                    .as_ref()
+                    .and_then(|m| m.get("three_ds_server_trans_id"))
+                    .is_some();
+
+            if is_stage1 {
+                let ts_id = connector_metadata
+                    .as_ref()
+                    .and_then(|m| m.get("three_ds_server_trans_id"))
+                    .and_then(|v| v.as_str())
+                    .unwrap_or_default()
+                    .to_string();
+
+                // Rebuild full metadata: preserve order_id from original meta, add threeDSServerTransId
+                let original_meta: Option<atbbank::AtbbankMeta> = data
+                    .request
+                    .connector_meta
+                    .as_ref()
+                    .and_then(|m| serde_json::from_value(m.clone()).ok());
+
+                if let Some(mut meta) = original_meta {
+                    meta.three_ds_server_trans_id = Some(ts_id);
+                    // Clear card data — no longer needed after Stage 1
+                    meta.card_number = None;
+                    meta.card_cvc = None;
+                    meta.card_exp_month = None;
+                    meta.card_exp_year = None;
+                    meta.card_holder = None;
+
+                    if let Ok(updated) = serde_json::to_value(&meta) {
+                        *connector_metadata = Some(updated);
+                    }
+                }
+
+                // Redirect to complete_authorize_url to trigger Stage 2
+                if let Some(ref complete_url) = data.request.complete_authorize_url {
+                    use hyperswitch_domain_models::router_response_types::RedirectForm;
+                    *redirection_data = Box::new(Some(RedirectForm::Form {
+                        endpoint: complete_url.clone(),
+                        method: Method::Get,
+                        form_fields: HashMap::new(),
+                    }));
+                }
+            }
+        }
+
+        Ok(router_data)
     }
 
     fn get_error_response(
